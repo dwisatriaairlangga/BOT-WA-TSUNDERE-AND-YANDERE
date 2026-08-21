@@ -13,11 +13,12 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 // === TEMPAT MENYIMPAN INGATAN ===
 const userChats = new Map();
 
-// 2. PENGATURAN CLIENT (Paling Stabil untuk Railway & Laptop)
+// 2. PENGATURAN CLIENT (Paling Stabil untuk Railway)
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
+        executablePath: process.platform === 'win32' ? undefined : '/usr/bin/chromium-browser',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',

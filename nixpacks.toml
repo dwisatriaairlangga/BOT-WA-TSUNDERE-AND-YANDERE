@@ -1,2 +1,2 @@
 [phases.setup]
-aptPkgs = ["chromium"]
+nixPkgs = ["chromium", "nss", "freetype", "harfbuzz", "ca-certificates", "ttf-font-unifont"]
