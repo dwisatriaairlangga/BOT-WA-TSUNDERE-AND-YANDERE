@@ -26,12 +26,12 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 // === TEMPAT MENYIMPAN INGATAN ===
 const userChats = new Map(); 
 
-// 2. PENGATURAN CLIENT (Tanpa paksaan jalur)
+// 2. PENGATURAN CLIENT (Otomatis menyesuaikan Docker / Laptop)
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
-        // Kita biarkan kosong agar Puppeteer mendownload & memakai Chromium bawaannya sendiri
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined, // Docker akan menyuntikkan jalurnya ke sini!
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
