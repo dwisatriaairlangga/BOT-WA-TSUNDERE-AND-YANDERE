@@ -13,12 +13,11 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 // === TEMPAT MENYIMPAN INGATAN ===
 const userChats = new Map();
 
-// 2. PENGATURAN CLIENT (Otomatis deteksi Laptop vs Railway)
+// 2. PENGATURAN CLIENT (Paling Stabil untuk Railway & Laptop)
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
-       executablePath: process.platform === 'win32' ? undefined : (process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium'), 
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -30,7 +29,6 @@ const client = new Client({
         ]
     }
 });
-
 // Menampilkan QR
 client.on('qr', (qr) => {
     qrcode.generate(qr, { small: true });
