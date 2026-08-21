@@ -1,24 +1,37 @@
-require('dotenv').config(); 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; 
+require('dotenv').config(); // Berfungsi agar bot bisa membaca file .env di laptop
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Trik menembus blokir jaringan
 
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const axios = require('axios'); 
-const ytdl = require('@distube/ytdl-core'); 
+const axios = require('axios'); // Modul untuk mengambil data dari API downloader
+
+// === FITUR PELACAK CHROMIUM OTOMATIS ===
+const { execSync } = require('child_process');
+let pathChromium = undefined;
+if (process.platform !== 'win32') { // Jika bot nyala di Railway (Linux)
+    try {
+        // Menyuruh sistem mencari sendiri letak Chromium-nya
+        pathChromium = execSync('which chromium').toString().trim();
+        if (!pathChromium) pathChromium = execSync('which chromium-browser').toString().trim();
+        console.log('Target ditemukan di:', pathChromium);
+    } catch (e) {
+        console.error('RA: Gagal melacak Chromium otomatis!');
+    }
+}
 
 // 1. KUNCI API GEMINI 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // === TEMPAT MENYIMPAN INGATAN ===
-const userChats = new Map();
+const userChats = new Map(); 
 
-// 2. PENGATURAN CLIENT (Paling Stabil untuk Railway)
+// 2. PENGATURAN CLIENT (Memakai hasil pelacakan otomatis)
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
-        executablePath: process.platform === 'win32' ? undefined : '/usr/bin/chromium-browser',
+        executablePath: pathChromium, // <--- Ini kunci utamanya!
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -30,6 +43,7 @@ const client = new Client({
         ]
     }
 });
+
 // Menampilkan QR
 client.on('qr', (qr) => {
     qrcode.generate(qr, { small: true });
@@ -37,9 +51,9 @@ client.on('qr', (qr) => {
 
 // Bot Siap
 client.on('ready', () => {
-    console.log('=========================================');
-    console.log(' BOT RA (INGATAN + GAMES + TIKTOK 2-LAYER) AKTIF!');
-    console.log('=========================================');
+    console.log('==================================================');
+    console.log(' BOT RA (INGATAN + GAMES + DOWNLOADER) AKTIF!  ');
+    console.log('==================================================');
 });
 
 // 3. MEMBACA PESAN MASUK
