@@ -11,7 +11,9 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@distube/ytdl-core": "^4.16.12",
     "@google/generative-ai": "^0.24.1",
+    "axios": "^1.19.0",
     "dotenv": "^17.4.2",
     "qrcode-terminal": "^0.12.0",
     "whatsapp-web.js": "https://github.com/pedroslopez/whatsapp-web.js/tarball/main"
