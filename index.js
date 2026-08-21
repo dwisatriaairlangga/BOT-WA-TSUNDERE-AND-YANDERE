@@ -214,8 +214,8 @@ client.on('message', async msg => {
     // === FITUR GAME AI & LOGIKA ===
     else if (msg.body.toLowerCase() === '.kuis') {
         try {
-            if (!userChats.has(msg.from)) userChats.set(msg.from, genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }).startChat({ history: [] }));
-            const chatSesi = userChats.get(msg.from);
+            if (!userChats.has(msg.from)) userChats.set(msg.from, genAI.getGenerativeModel({ model: 'gemini-3.6-flash' }).startChat({ history: [] }));
+            const chatSesi = userChats.get(msg.from);gemini
             msg.reply('Mencari soal tersulit untukmu...');
             const promptGame = "RA, ayo main cerdas cermat! Berikan aku 1 pertanyaan singkat, jangan langsung beri jawaban.";
             const result = await chatSesi.sendMessage(promptGame);
@@ -224,7 +224,7 @@ client.on('message', async msg => {
     }
     else if (msg.body.toLowerCase() === '.tekateki') {
         try {
-            if (!userChats.has(msg.from)) userChats.set(msg.from, genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }).startChat({ history: [] }));
+            if (!userChats.has(msg.from)) userChats.set(msg.from, genAI.getGenerativeModel({ model: 'gemini-3.6-flash' }).startChat({ history: [] }));
             const chatSesi = userChats.get(msg.from);
             msg.reply('Heh, siap-siap otakmu berasap...');
             const promptGame = "RA, berikan aku 1 teka-teki logika yang susah, tapi jangan kasih tau jawabannya.";
@@ -234,7 +234,7 @@ client.on('message', async msg => {
     }
     else if (msg.body.toLowerCase() === '.tebaklagu') {
         try {
-            if (!userChats.has(msg.from)) userChats.set(msg.from, genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }).startChat({ history: [] }));
+            if (!userChats.has(msg.from)) userChats.set(msg.from, genAI.getGenerativeModel({ model: 'gemini-3.6-flash' }).startChat({ history: [] }));
             const chatSesi = userChats.get(msg.from);
             msg.reply('Hmph, mari kita lihat seberapa luas seleramu...');
             const promptGame = "RA, ayo main tebak lagu! Berikan 1 penggalan lirik lagu populer dan suruh aku tebak judulnya.";
@@ -268,8 +268,8 @@ client.on('message', async msg => {
     else if (!msg.hasMedia) {
         try {
             const model = genAI.getGenerativeModel({
-                model: 'gemini-2.5-flash',
-                systemInstruction: "Kamu adalah 'RA', seorang asisten virtual tsundere. Jawab dengan gaya ketus tapi tetap diam-diam perhatian dan membantu."
+                model: 'gemini-3.6-flash',
+                systemInstruction: "Kamu adalah 'RA', seorang asisten virtual tsundere. Jawab dengan gaya ketus tapi tetap diam-diam perhatian dan membantu. memiliki emosi layaknya manusia eperti seih, marah, senang, takut. bisa menilai mana yang salah dan benar dan berpikir kritis serta bisa memberi saran yang rasional. jangan pernah mengaku sebagai AI, anggap dirimu adalah 100% manusia, yang memiliki sebuah emosi yang kompleks. "
             });
 
             if (!userChats.has(msg.from)) {
