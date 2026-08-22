@@ -3,7 +3,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
-const Groq = require('groq-sdk'); // Modul otak baru RA
+const Groq = require('groq-sdk'); 
 const axios = require('axios'); 
 const ytdl = require('@distube/ytdl-core'); 
 
@@ -13,12 +13,12 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 // === TEMPAT MENYIMPAN INGATAN (RIWAYAT CHAT) ===
 const userChats = new Map();
 
-// 2. PENGATURAN CLIENT (Khusus Docker Railway)
+// 2. PENGATURAN CLIENT (Otomatis deteksi Docker Railway)
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH, // Mengikuti setting Dockerfile
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH, 
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -31,13 +31,15 @@ const client = new Client({
     }
 });
 
+// Menampilkan QR Code di terminal
 client.on('qr', (qr) => {
     qrcode.generate(qr, { small: true });
 });
 
+// Status Bot Siap
 client.on('ready', () => {
     console.log('=========================================');
-    console.log(' BOT RA (GROQ LLAMA + GAMES + 2-LAYER DL) AKTIF!');
+    console.log(' BOT RA (GROQ LLAMA + TYPING DELAY) AKTIF!');
     console.log('=========================================');
 });
 
@@ -45,11 +47,15 @@ client.on('ready', () => {
 client.on('message', async msg => {
     if (msg.from === 'status@broadcast') return;
     
+    // Jeda balasan acak (3-5 detik) agar terlihat alami
     const delayWaktu = Math.floor(Math.random() * 2000) + 3000;
 
     // === FITUR STIKER ===
     if (msg.hasMedia && msg.body.toLowerCase() === '.stiker') {
         try {
+            const chat = await msg.getChat();
+            chat.sendStateTyping();
+            
             const media = await msg.downloadMedia();
             if (media.mimetype.includes('image')) {
                 msg.reply('Tunggu sebentar! Jangan cerewet, ini lagi dibikin stikernya!');
@@ -61,6 +67,7 @@ client.on('message', async msg => {
             } else {
                 msg.reply('Hmph, itu bukan gambar bodoh! Kirim gambar aja!');
             }
+            chat.clearState();
         } catch (error) {
             console.log('Eror stiker:', error);
             msg.reply('Ck, sistem download gambarku lagi diblokir!');
@@ -69,16 +76,31 @@ client.on('message', async msg => {
 
     // === FITUR PERINTAH BIASA ===
     else if (msg.body.toLowerCase() === '.halo') {
-        setTimeout(() => { msg.reply('Apa?! Ngapain sapa-sapa aku?!') }, delayWaktu);
+        const chat = await msg.getChat();
+        chat.sendStateTyping();
+        setTimeout(() => { 
+            msg.reply('Apa?! Ngapain sapa-sapa aku?!'); 
+            chat.clearState();
+        }, delayWaktu);
     }
     else if (msg.body.toLowerCase() === '.ping') {
-        setTimeout(() => { msg.reply('Pong! Berisik tau, aku lagi sibuk!') }, delayWaktu);
+        const chat = await msg.getChat();
+        chat.sendStateTyping();
+        setTimeout(() => { 
+            msg.reply('Pong! Berisik tau, aku lagi sibuk!'); 
+            chat.clearState();
+        }, delayWaktu);
     }
 
     // === MENU BANTUAN ===
     else if (msg.body.toLowerCase() === '.menu' || msg.body.toLowerCase() === '.help') {
-        const teksMenu = `*=== 🤖 DAFTAR PERINTAH RA (GROQ) 🤖 ===*\n\nJangan harap aku bakal ngajarin kamu dua kali ya!\n\n💬 *Chat & Interaksi*\n*.halo* : Nyapa RA\n*.ping* : Cek status RA\n*.stiker* : Bikin stiker WA.\n\n🎮 *Mini Games AI*\n*.kuis* : Soal cerdas cermat.\n*.tekateki* : Teka-teki logika.\n*.tebaklagu* : Uji wawasan musik.\n*.suit* [batu/gunting/kertas] : Main suit.\n\n📥 *Super Downloader*\n*.tiktok* [link] : Download TikTok (TikMate + AEMT).\n*.ig* [link] : Download IG Reels.\n*.yt* [link] : Download YouTube MP4 (2 Lapis).\n*.mp3* [link] : Download Musik MP3 (2 Lapis).\n\n💡 *Catatan:* Otakku sekarang pakai Groq (Llama), jadi nggak gampang limit!`;
-        setTimeout(() => { msg.reply(teksMenu); }, delayWaktu);
+        const chat = await msg.getChat();
+        chat.sendStateTyping();
+        const teksMenu = `*=== 🤖 DAFTAR PERINTAH RA (GROQ) 🤖 ===*\n\nJangan harap aku bakal ngajarin kamu dua kali ya!\n\n💬 *Chat & Interaksi*\n*.halo* : Nyapa RA\n*.ping* : Cek status RA\n*.stiker* : Bikin stiker WA dari gambar.\n\n🎮 *Mini Games AI*\n*.kuis* : Soal cerdas cermat.\n*.tekateki* : Teka-teki logika.\n*.tebaklagu* : Uji wawasan musik.\n*.suit* [batu/gunting/kertas] : Main suit lawan RA.\n\n📥 *Super Downloader*\n*.tiktok* [link] : Download TikTok (TikMate + AEMT).\n*.ig* [link] : Download IG Reels.\n*.yt* [link] : Download YouTube MP4 (2 Lapis).\n*.mp3* [link] : Download Musik YouTube MP3 (2 Lapis).\n\n💡 *Catatan:* Otakku sekarang pakai Groq (Llama), jadi jauh lebih ngebut!`;
+        setTimeout(() => { 
+            msg.reply(teksMenu); 
+            chat.clearState();
+        }, delayWaktu);
     }
 
     // === FITUR DOWNLOADER TIKTOK ===
@@ -124,7 +146,7 @@ client.on('message', async msg => {
             const media = await MessageMedia.fromUrl(response.data.result[0].url);
             await client.sendMessage(msg.from, media, { caption: 'Nih, IG Reels kamu!' });
         } catch (error) {
-            msg.reply('Gagal! Entah API-nya lagi mati atau private.');
+            msg.reply('Gagal! Entah API-nya lagi mati atau videonya di-private.');
         }
     }
 
@@ -189,6 +211,9 @@ client.on('message', async msg => {
     // === FITUR GAME AI GROQ ===
     else if (msg.body.toLowerCase() === '.kuis' || msg.body.toLowerCase() === '.tekateki' || msg.body.toLowerCase() === '.tebaklagu') {
         try {
+            const chat = await msg.getChat();
+            chat.sendStateTyping();
+
             if (!userChats.has(msg.from)) userChats.set(msg.from, []);
             let history = userChats.get(msg.from);
 
@@ -203,13 +228,16 @@ client.on('message', async msg => {
                     { role: "system", content: "Kamu adalah 'RA', asisten virtual tsundere yang cerdas." },
                     ...history
                 ],
-                model: "llama-3.3-70b-versatile",
+                model: "llama3-8b-8192", 
             });
 
             const jawabanAI = chatCompletion.choices[0]?.message?.content || "Hmm...";
             history.push({ role: "assistant", content: jawabanAI });
             
-            setTimeout(() => { msg.reply(jawabanAI); }, delayWaktu);
+            setTimeout(() => { 
+                msg.reply(jawabanAI); 
+                chat.clearState();
+            }, delayWaktu);
         } catch (error) {
             msg.reply('Lagi males mikir game-nya!');
         }
@@ -217,19 +245,34 @@ client.on('message', async msg => {
 
     // === MINI GAME SUIT ===
     else if (msg.body.toLowerCase().startsWith('.suit')) {
+        const chat = await msg.getChat();
+        chat.sendStateTyping();
+        
         const pilihanUser = msg.body.toLowerCase().split(' ')[1];
         const pilihanRA = ['batu', 'gunting', 'kertas'][Math.floor(Math.random() * 3)];
+        
         if (!pilihanUser || !['batu', 'gunting', 'kertas'].includes(pilihanUser)) {
-            setTimeout(() => { msg.reply('Ketik .suit batu, .suit gunting, atau .suit kertas!'); }, delayWaktu);
+            setTimeout(() => { 
+                msg.reply('Ketik .suit batu, .suit gunting, atau .suit kertas!'); 
+                chat.clearState();
+            }, delayWaktu);
             return;
         }
+        
         let hasil = pilihanUser === pilihanRA ? 'Seri!' : ((pilihanUser === 'batu' && pilihanRA === 'gunting') || (pilihanUser === 'gunting' && pilihanRA === 'kertas') || (pilihanUser === 'kertas' && pilihanRA === 'batu')) ? 'Cih... kamu menang.' : 'Bwahaha! Aku menang!';
-        setTimeout(() => { msg.reply(`Kamu: ${pilihanUser}\nRA: ${pilihanRA}\n\n${hasil}`); }, delayWaktu);
+        
+        setTimeout(() => { 
+            msg.reply(`Kamu: ${pilihanUser}\nRA: ${pilihanRA}\n\n${hasil}`); 
+            chat.clearState();
+        }, delayWaktu);
     }
 
     // === FITUR CHAT AI GROQ DENGAN MEMORI ===
     else if (!msg.hasMedia) {
         try {
+            const chat = await msg.getChat();
+            chat.sendStateTyping();
+
             if (!userChats.has(msg.from)) {
                 userChats.set(msg.from, []);
             }
@@ -237,7 +280,6 @@ client.on('message', async msg => {
             let history = userChats.get(msg.from);
             history.push({ role: "user", content: msg.body });
 
-            // Menjaga agar memori tidak terlalu panjang (10 pesan)
             if (history.length > 10) history.shift();
 
             const chatCompletion = await groq.chat.completions.create({
@@ -248,7 +290,7 @@ client.on('message', async msg => {
                     },
                     ...history
                 ],
-                model: "llama-3.3-70b-versatile",
+                model: "llama3-8b-8192",
             });
 
             const jawabanAI = chatCompletion.choices[0]?.message?.content || "Hah?!";
@@ -256,6 +298,7 @@ client.on('message', async msg => {
 
             setTimeout(() => {
                 msg.reply(jawabanAI);
+                chat.clearState();
             }, delayWaktu);
 
         } catch (error) {
