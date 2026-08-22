@@ -10,10 +10,22 @@ const ytdl = require('@distube/ytdl-core');
 // 1. KUNCI API GROQ
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-// === TEMPAT MENYIMPAN INGATAN (RIWAYAT CHAT) ===
+// === TEMPAT MENYIMPAN INGATAN ===
 const userChats = new Map();
 
-// 2. PENGATURAN CLIENT (Otomatis deteksi Docker Railway)
+// === FUNGSI PENGAMAN TYPING ===
+// Mencegah error "r: r" saat WhatsApp Web sedang lemot/rewel
+async function setTyping(msg, isTyping) {
+    try {
+        const chat = await msg.getChat();
+        if (isTyping) chat.sendStateTyping();
+        else chat.clearState();
+    } catch (e) {
+        // Abaikan dalam diam jika WA gagal memunculkan status typing
+    }
+}
+
+// 2. PENGATURAN CLIENT
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
@@ -31,15 +43,13 @@ const client = new Client({
     }
 });
 
-// Menampilkan QR Code di terminal
 client.on('qr', (qr) => {
     qrcode.generate(qr, { small: true });
 });
 
-// Status Bot Siap
 client.on('ready', () => {
     console.log('=========================================');
-    console.log(' BOT RA (GROQ LLAMA + TYPING DELAY) AKTIF!');
+    console.log(' BOT RA (GROQ + ANTI-ERROR TYPING) AKTIF!');
     console.log('=========================================');
 });
 
@@ -47,15 +57,12 @@ client.on('ready', () => {
 client.on('message', async msg => {
     if (msg.from === 'status@broadcast') return;
     
-    // Jeda balasan acak (3-5 detik) agar terlihat alami
     const delayWaktu = Math.floor(Math.random() * 2000) + 3000;
 
     // === FITUR STIKER ===
     if (msg.hasMedia && msg.body.toLowerCase() === '.stiker') {
         try {
-            const chat = await msg.getChat();
-            chat.sendStateTyping();
-            
+            await setTyping(msg, true);
             const media = await msg.downloadMedia();
             if (media.mimetype.includes('image')) {
                 msg.reply('Tunggu sebentar! Jangan cerewet, ini lagi dibikin stikernya!');
@@ -67,57 +74,48 @@ client.on('message', async msg => {
             } else {
                 msg.reply('Hmph, itu bukan gambar bodoh! Kirim gambar aja!');
             }
-            chat.clearState();
+            await setTyping(msg, false);
         } catch (error) {
-            console.log('Eror stiker:', error);
             msg.reply('Ck, sistem download gambarku lagi diblokir!');
         }
     }
 
     // === FITUR PERINTAH BIASA ===
     else if (msg.body.toLowerCase() === '.halo') {
-        const chat = await msg.getChat();
-        chat.sendStateTyping();
-        setTimeout(() => { 
+        await setTyping(msg, true);
+        setTimeout(async () => { 
             msg.reply('Apa?! Ngapain sapa-sapa aku?!'); 
-            chat.clearState();
+            await setTyping(msg, false);
         }, delayWaktu);
     }
     else if (msg.body.toLowerCase() === '.ping') {
-        const chat = await msg.getChat();
-        chat.sendStateTyping();
-        setTimeout(() => { 
+        await setTyping(msg, true);
+        setTimeout(async () => { 
             msg.reply('Pong! Berisik tau, aku lagi sibuk!'); 
-            chat.clearState();
+            await setTyping(msg, false);
         }, delayWaktu);
     }
 
     // === MENU BANTUAN ===
     else if (msg.body.toLowerCase() === '.menu' || msg.body.toLowerCase() === '.help') {
-        const chat = await msg.getChat();
-        chat.sendStateTyping();
+        await setTyping(msg, true);
         const teksMenu = `*=== 🤖 DAFTAR PERINTAH RA (GROQ) 🤖 ===*\n\nJangan harap aku bakal ngajarin kamu dua kali ya!\n\n💬 *Chat & Interaksi*\n*.halo* : Nyapa RA\n*.ping* : Cek status RA\n*.stiker* : Bikin stiker WA dari gambar.\n\n🎮 *Mini Games AI*\n*.kuis* : Soal cerdas cermat.\n*.tekateki* : Teka-teki logika.\n*.tebaklagu* : Uji wawasan musik.\n*.suit* [batu/gunting/kertas] : Main suit lawan RA.\n\n📥 *Super Downloader*\n*.tiktok* [link] : Download TikTok (TikMate + AEMT).\n*.ig* [link] : Download IG Reels.\n*.yt* [link] : Download YouTube MP4 (2 Lapis).\n*.mp3* [link] : Download Musik YouTube MP3 (2 Lapis).\n\n💡 *Catatan:* Otakku sekarang pakai Groq (Llama), jadi jauh lebih ngebut!`;
-        setTimeout(() => { 
+        setTimeout(async () => { 
             msg.reply(teksMenu); 
-            chat.clearState();
+            await setTyping(msg, false);
         }, delayWaktu);
     }
 
     // === FITUR DOWNLOADER TIKTOK ===
     else if (msg.body.toLowerCase().startsWith('.tiktok')) {
         const link = msg.body.split(' ')[1];
-        if (!link) {
-            setTimeout(() => { msg.reply('Linknya mana bodoh?!') }, delayWaktu);
-            return;
-        }
+        if (!link) return msg.reply('Linknya mana bodoh?!');
         msg.reply('Ck, bawel banget sih. Bentar, aku ambilin videonya...');
         
         try {
             const apiUrl1 = `https://api.tikmate.app/api/lookup?url=${link}`;
             const response1 = await axios.get(apiUrl1);
-            const videoUrl1 = `https://tikmate.app/download/${response1.data.id}.mp4`;
-            
-            const media = await MessageMedia.fromUrl(videoUrl1);
+            const media = await MessageMedia.fromUrl(`https://tikmate.app/download/${response1.data.id}.mp4`);
             await client.sendMessage(msg.from, media, { caption: 'Nih videonya!' });
         } catch (error1) {
             try {
@@ -134,10 +132,7 @@ client.on('message', async msg => {
     // === FITUR DOWNLOADER INSTAGRAM ===
     else if (msg.body.toLowerCase().startsWith('.ig')) {
         const link = msg.body.split(' ')[1];
-        if (!link) {
-            setTimeout(() => { msg.reply('Link IG-nya mana?') }, delayWaktu);
-            return;
-        }
+        if (!link) return msg.reply('Link IG-nya mana?');
         msg.reply('Sabar! IG itu pelit ngasih data...');
         
         try {
@@ -153,23 +148,18 @@ client.on('message', async msg => {
     // === FITUR DOWNLOADER YOUTUBE ===
     else if (msg.body.toLowerCase().startsWith('.yt')) {
         const link = msg.body.split(' ')[1];
-        if (!link) {
-            setTimeout(() => { msg.reply('Link YouTubenya mana?') }, delayWaktu);
-            return;
-        }
+        if (!link) return msg.reply('Link YouTubenya mana?');
         msg.reply('Lagi ngambil videonya...');
         
         try {
             if (!ytdl.validateURL(link)) return msg.reply('Itu bukan link YouTube!');
             const info = await ytdl.getInfo(link);
             const format = ytdl.chooseFormat(info.formats, { quality: 'highest', filter: 'audioandvideo' });
-            
             const media = await MessageMedia.fromUrl(format.url);
             await client.sendMessage(msg.from, media, { caption: 'Nih videonya!' });
         } catch (error1) {
             try {
-                const apiUrl = `https://api.aemt.me/download/ytdl?url=${link}`;
-                const response = await axios.get(apiUrl);
+                const response = await axios.get(`https://api.aemt.me/download/ytdl?url=${link}`);
                 const media = await MessageMedia.fromUrl(response.data.result.mp4);
                 await client.sendMessage(msg.from, media, { caption: 'Nih videonya (Cadangan AEMT)!' });
             } catch (error2) {
@@ -181,24 +171,19 @@ client.on('message', async msg => {
     // === FITUR DOWNLOADER MUSIK (MP3) ===
     else if (msg.body.toLowerCase().startsWith('.mp3')) {
         const link = msg.body.split(' ')[1];
-        if (!link) {
-            setTimeout(() => { msg.reply('Link lagunya mana?') }, delayWaktu);
-            return;
-        }
+        if (!link) return msg.reply('Link lagunya mana?');
         msg.reply('Lagi download lagunya...');
         
         try {
             if (!ytdl.validateURL(link)) return msg.reply('Itu bukan link YouTube!');
             const info = await ytdl.getInfo(link);
             const format = ytdl.chooseFormat(info.formats, { filter: 'audioonly' });
-            
             const media = await MessageMedia.fromUrl(format.url);
             await client.sendMessage(msg.from, media, { sendAudioAsVoice: false });
             msg.reply('Udah tuh audionya!');
         } catch (error1) {
             try {
-                const apiUrl = `https://api.aemt.me/download/ytdl?url=${link}`;
-                const response = await axios.get(apiUrl);
+                const response = await axios.get(`https://api.aemt.me/download/ytdl?url=${link}`);
                 const media = await MessageMedia.fromUrl(response.data.result.mp3);
                 await client.sendMessage(msg.from, media, { sendAudioAsVoice: false });
                 msg.reply('Audionya berhasil diambil dari cadangan!');
@@ -211,9 +196,7 @@ client.on('message', async msg => {
     // === FITUR GAME AI GROQ ===
     else if (msg.body.toLowerCase() === '.kuis' || msg.body.toLowerCase() === '.tekateki' || msg.body.toLowerCase() === '.tebaklagu') {
         try {
-            const chat = await msg.getChat();
-            chat.sendStateTyping();
-
+            await setTyping(msg, true);
             if (!userChats.has(msg.from)) userChats.set(msg.from, []);
             let history = userChats.get(msg.from);
 
@@ -234,9 +217,9 @@ client.on('message', async msg => {
             const jawabanAI = chatCompletion.choices[0]?.message?.content || "Hmm...";
             history.push({ role: "assistant", content: jawabanAI });
             
-            setTimeout(() => { 
+            setTimeout(async () => { 
                 msg.reply(jawabanAI); 
-                chat.clearState();
+                await setTyping(msg, false);
             }, delayWaktu);
         } catch (error) {
             msg.reply('Lagi males mikir game-nya!');
@@ -245,33 +228,30 @@ client.on('message', async msg => {
 
     // === MINI GAME SUIT ===
     else if (msg.body.toLowerCase().startsWith('.suit')) {
-        const chat = await msg.getChat();
-        chat.sendStateTyping();
-        
+        await setTyping(msg, true);
         const pilihanUser = msg.body.toLowerCase().split(' ')[1];
         const pilihanRA = ['batu', 'gunting', 'kertas'][Math.floor(Math.random() * 3)];
         
         if (!pilihanUser || !['batu', 'gunting', 'kertas'].includes(pilihanUser)) {
-            setTimeout(() => { 
+            setTimeout(async () => { 
                 msg.reply('Ketik .suit batu, .suit gunting, atau .suit kertas!'); 
-                chat.clearState();
+                await setTyping(msg, false);
             }, delayWaktu);
             return;
         }
         
         let hasil = pilihanUser === pilihanRA ? 'Seri!' : ((pilihanUser === 'batu' && pilihanRA === 'gunting') || (pilihanUser === 'gunting' && pilihanRA === 'kertas') || (pilihanUser === 'kertas' && pilihanRA === 'batu')) ? 'Cih... kamu menang.' : 'Bwahaha! Aku menang!';
         
-        setTimeout(() => { 
+        setTimeout(async () => { 
             msg.reply(`Kamu: ${pilihanUser}\nRA: ${pilihanRA}\n\n${hasil}`); 
-            chat.clearState();
+            await setTyping(msg, false);
         }, delayWaktu);
     }
 
     // === FITUR CHAT AI GROQ DENGAN MEMORI ===
     else if (!msg.hasMedia) {
         try {
-            const chat = await msg.getChat();
-            chat.sendStateTyping();
+            await setTyping(msg, true);
 
             if (!userChats.has(msg.from)) {
                 userChats.set(msg.from, []);
@@ -296,9 +276,9 @@ client.on('message', async msg => {
             const jawabanAI = chatCompletion.choices[0]?.message?.content || "Hah?!";
             history.push({ role: "assistant", content: jawabanAI });
 
-            setTimeout(() => {
+            setTimeout(async () => {
                 msg.reply(jawabanAI);
-                chat.clearState();
+                await setTyping(msg, false);
             }, delayWaktu);
 
         } catch (error) {
