@@ -1,37 +1,24 @@
-require('dotenv').config(); // Berfungsi agar bot bisa membaca file .env di laptop
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Trik menembus blokir jaringan
+require('dotenv').config(); 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; 
 
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const axios = require('axios'); // Modul untuk mengambil data dari API downloader
+const Groq = require('groq-sdk'); // Modul otak baru RA
+const axios = require('axios'); 
+const ytdl = require('@distube/ytdl-core'); 
 
-// === FITUR PELACAK CHROMIUM OTOMATIS ===
-const { execSync } = require('child_process');
-let pathChromium = undefined;
-if (process.platform !== 'win32') { // Jika bot nyala di Railway (Linux)
-    try {
-        // Menyuruh sistem mencari sendiri letak Chromium-nya
-        pathChromium = execSync('which chromium').toString().trim();
-        if (!pathChromium) pathChromium = execSync('which chromium-browser').toString().trim();
-        console.log('Target ditemukan di:', pathChromium);
-    } catch (e) {
-        console.error('RA: Gagal melacak Chromium otomatis!');
-    }
-}
+// 1. KUNCI API GROQ
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-// 1. KUNCI API GEMINI 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// === TEMPAT MENYIMPAN INGATAN (RIWAYAT CHAT) ===
+const userChats = new Map();
 
-// === TEMPAT MENYIMPAN INGATAN ===
-const userChats = new Map(); 
-
-// 2. PENGATURAN CLIENT (Otomatis menyesuaikan Docker / Laptop)
+// 2. PENGATURAN CLIENT (Khusus Docker Railway)
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined, // Docker akan menyuntikkan jalurnya ke sini!
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH, // Mengikuti setting Dockerfile
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -44,16 +31,14 @@ const client = new Client({
     }
 });
 
-// Menampilkan QR
 client.on('qr', (qr) => {
     qrcode.generate(qr, { small: true });
 });
 
-// Bot Siap
 client.on('ready', () => {
-    console.log('==================================================');
-    console.log(' BOT RA (INGATAN + GAMES + DOWNLOADER) AKTIF!  ');
-    console.log('==================================================');
+    console.log('=========================================');
+    console.log(' BOT RA (GROQ LLAMA + GAMES + 2-LAYER DL) AKTIF!');
+    console.log('=========================================');
 });
 
 // 3. MEMBACA PESAN MASUK
@@ -90,42 +75,36 @@ client.on('message', async msg => {
         setTimeout(() => { msg.reply('Pong! Berisik tau, aku lagi sibuk!') }, delayWaktu);
     }
 
-    // === MENU BANTUAN (DIPERBARUI) ===
+    // === MENU BANTUAN ===
     else if (msg.body.toLowerCase() === '.menu' || msg.body.toLowerCase() === '.help') {
-        const teksMenu = `*=== 🤖 DAFTAR PERINTAH RA 🤖 ===*\n\nJangan harap aku bakal ngajarin kamu dua kali ya!\n\n💬 *Chat & Interaksi*\n*.halo* : Nyapa RA (Resiko ditanggung sendiri)\n*.ping* : Cek status RA\n*.stiker* : Kirim gambar lalu kasih caption .stiker buat bikin stiker WA.\n\n🎮 *Mini Games AI*\n*.kuis* : RA bakal ngasih soal cerdas cermat.\n*.tekateki* : RA bakal ngasih kamu teka-teki logika.\n*.tebaklagu* : Uji wawasan musikmu bareng RA.\n*.suit* [batu/gunting/kertas] : Ayo lawan aku kalau berani!\n\n📥 *Super Downloader*\n*.tiktok* [link] : Download video TikTok (TikMate + AEMT Backup).\n*.ig* [link] : Download video/reels Instagram.\n*.yt* [link] : Download video YouTube (NPM + API Backup).\n*.mp3* [link] : Download musik YouTube (NPM + API Backup).\n\n💡 *Catatan:* Selain perintah di atas, kamu bisa ngobrol langsung sama aku kayak biasa. Udah sana pakai!`;
+        const teksMenu = `*=== 🤖 DAFTAR PERINTAH RA (GROQ) 🤖 ===*\n\nJangan harap aku bakal ngajarin kamu dua kali ya!\n\n💬 *Chat & Interaksi*\n*.halo* : Nyapa RA\n*.ping* : Cek status RA\n*.stiker* : Bikin stiker WA.\n\n🎮 *Mini Games AI*\n*.kuis* : Soal cerdas cermat.\n*.tekateki* : Teka-teki logika.\n*.tebaklagu* : Uji wawasan musik.\n*.suit* [batu/gunting/kertas] : Main suit.\n\n📥 *Super Downloader*\n*.tiktok* [link] : Download TikTok (TikMate + AEMT).\n*.ig* [link] : Download IG Reels.\n*.yt* [link] : Download YouTube MP4 (2 Lapis).\n*.mp3* [link] : Download Musik MP3 (2 Lapis).\n\n💡 *Catatan:* Otakku sekarang pakai Groq (Llama), jadi nggak gampang limit!`;
         setTimeout(() => { msg.reply(teksMenu); }, delayWaktu);
     }
 
-    // === FITUR DOWNLOADER TIKTOK (2 LAPIS: TIKMATE + AEMT) ===
+    // === FITUR DOWNLOADER TIKTOK ===
     else if (msg.body.toLowerCase().startsWith('.tiktok')) {
         const link = msg.body.split(' ')[1];
         if (!link) {
             setTimeout(() => { msg.reply('Linknya mana bodoh?!') }, delayWaktu);
             return;
         }
-        msg.reply('Ck, bawel banget sih. Bentar, aku ambilin videonya dengan 2 mesin cadangan...');
+        msg.reply('Ck, bawel banget sih. Bentar, aku ambilin videonya...');
         
         try {
-            // LAPIS 1: MENGGUNAKAN API TIKMATE
             const apiUrl1 = `https://api.tikmate.app/api/lookup?url=${link}`;
             const response1 = await axios.get(apiUrl1);
             const videoUrl1 = `https://tikmate.app/download/${response1.data.id}.mp4`;
             
             const media = await MessageMedia.fromUrl(videoUrl1);
-            await client.sendMessage(msg.from, media, { caption: 'Nih videonya (Mesin TikMate)! Jangan bilang makasih!' });
-
+            await client.sendMessage(msg.from, media, { caption: 'Nih videonya!' });
         } catch (error1) {
             try {
-                // LAPIS 2: MENGGUNAKAN API AEMT
                 const apiUrl2 = `https://api.aemt.me/download/tiktok?url=${link}`;
                 const response2 = await axios.get(apiUrl2);
-                const videoUrl2 = response2.data.result.nowm; 
-                
-                const media = await MessageMedia.fromUrl(videoUrl2);
-                await client.sendMessage(msg.from, media, { caption: 'Mesin utama error, tapi lapis cadangan AEMT berhasil. Nih videonya!' });
-
+                const media = await MessageMedia.fromUrl(response2.data.result.nowm);
+                await client.sendMessage(msg.from, media, { caption: 'Nih videonya (Cadangan AEMT)!' });
             } catch (error2) {
-                msg.reply('Gagal Total! Kedua mesinku gagal mengambil video TikTok-nya, mungkin link-nya salah atau privat!');
+                msg.reply('Gagal Total! Kedua mesinku gagal mengambil video TikTok-nya.');
             }
         }
     }
@@ -137,58 +116,54 @@ client.on('message', async msg => {
             setTimeout(() => { msg.reply('Link IG-nya mana?') }, delayWaktu);
             return;
         }
-        msg.reply('Sabar! IG itu pelit ngasih data, jadi agak lama...');
+        msg.reply('Sabar! IG itu pelit ngasih data...');
         
         try {
             const apiUrl = `https://api.aemt.me/download/igdl?url=${link}`;
             const response = await axios.get(apiUrl);
-            const mediaUrl = response.data.result[0].url;
-            
-            const media = await MessageMedia.fromUrl(mediaUrl);
+            const media = await MessageMedia.fromUrl(response.data.result[0].url);
             await client.sendMessage(msg.from, media, { caption: 'Nih, IG Reels kamu!' });
         } catch (error) {
-            msg.reply('Gagal! Entah API-nya lagi mati, atau videonya di-private!');
+            msg.reply('Gagal! Entah API-nya lagi mati atau private.');
         }
     }
 
-    // === FITUR DOWNLOADER YOUTUBE (2 LAPIS) ===
+    // === FITUR DOWNLOADER YOUTUBE ===
     else if (msg.body.toLowerCase().startsWith('.yt')) {
         const link = msg.body.split(' ')[1];
         if (!link) {
             setTimeout(() => { msg.reply('Link YouTubenya mana?') }, delayWaktu);
             return;
         }
-        
-        msg.reply('Ck, bawel! Aku siapkan 2 mesin cadangan. Tunggu bentar!');
+        msg.reply('Lagi ngambil videonya...');
         
         try {
-            if (!ytdl.validateURL(link)) return msg.reply('Hmph! Itu bukan link YouTube!');
+            if (!ytdl.validateURL(link)) return msg.reply('Itu bukan link YouTube!');
             const info = await ytdl.getInfo(link);
             const format = ytdl.chooseFormat(info.formats, { quality: 'highest', filter: 'audioandvideo' });
             
             const media = await MessageMedia.fromUrl(format.url);
-            await client.sendMessage(msg.from, media, { caption: 'Berhasil pakai mesin utama NPM! Nih videonya!' });
+            await client.sendMessage(msg.from, media, { caption: 'Nih videonya!' });
         } catch (error1) {
             try {
                 const apiUrl = `https://api.aemt.me/download/ytdl?url=${link}`;
                 const response = await axios.get(apiUrl);
                 const media = await MessageMedia.fromUrl(response.data.result.mp4);
-                await client.sendMessage(msg.from, media, { caption: 'Mesin utama error, tapi API AEMT berhasil. Nih!' });
+                await client.sendMessage(msg.from, media, { caption: 'Nih videonya (Cadangan AEMT)!' });
             } catch (error2) {
-                msg.reply('Gagal Total! Kedua mesinku tumbang semua, kemungkinan videonya di-private atau kegedean!');
+                msg.reply('Gagal Total! Videonya kegedean atau di-private.');
             }
         }
     }
 
-    // === FITUR DOWNLOADER MUSIK YOUTUBE (2 LAPIS) ===
+    // === FITUR DOWNLOADER MUSIK (MP3) ===
     else if (msg.body.toLowerCase().startsWith('.mp3')) {
         const link = msg.body.split(' ')[1];
         if (!link) {
             setTimeout(() => { msg.reply('Link lagunya mana?') }, delayWaktu);
             return;
         }
-        
-        msg.reply('Ck, iya iya ini lagi di-download lagunya (2 Lapis Mesin)...');
+        msg.reply('Lagi download lagunya...');
         
         try {
             if (!ytdl.validateURL(link)) return msg.reply('Itu bukan link YouTube!');
@@ -197,97 +172,95 @@ client.on('message', async msg => {
             
             const media = await MessageMedia.fromUrl(format.url);
             await client.sendMessage(msg.from, media, { sendAudioAsVoice: false });
-            msg.reply('Berhasil pakai mesin utama. Udah tuh audionya!');
+            msg.reply('Udah tuh audionya!');
         } catch (error1) {
             try {
                 const apiUrl = `https://api.aemt.me/download/ytdl?url=${link}`;
                 const response = await axios.get(apiUrl);
                 const media = await MessageMedia.fromUrl(response.data.result.mp3);
                 await client.sendMessage(msg.from, media, { sendAudioAsVoice: false });
-                msg.reply('Mesin 1 error, Lapis 2 (AEMT) berhasil. Jangan dengerin keras-keras!');
+                msg.reply('Audionya berhasil diambil dari cadangan!');
             } catch (error2) {
-                msg.reply('Gagal Total! Susah banget sih ngambil lagunya!');
+                msg.reply('Gagal mengambil lagu.');
             }
         }
     }
 
-    // === FITUR GAME AI & LOGIKA ===
-    else if (msg.body.toLowerCase() === '.kuis') {
+    // === FITUR GAME AI GROQ ===
+    else if (msg.body.toLowerCase() === '.kuis' || msg.body.toLowerCase() === '.tekateki' || msg.body.toLowerCase() === '.tebaklagu') {
         try {
-            if (!userChats.has(msg.from)) userChats.set(msg.from, genAI.getGenerativeModel({ model: 'gemini-3.6-flash' }).startChat({ history: [] }));
-            const chatSesi = userChats.get(msg.from);gemini
-            msg.reply('Mencari soal tersulit untukmu...');
-            const promptGame = "RA, ayo main cerdas cermat! Berikan aku 1 pertanyaan singkat, jangan langsung beri jawaban.";
-            const result = await chatSesi.sendMessage(promptGame);
-            setTimeout(() => { msg.reply(result.response.text()); }, delayWaktu);
-        } catch (error) { msg.reply('Lagi males mikir soal, nanti aja ya!'); }
+            if (!userChats.has(msg.from)) userChats.set(msg.from, []);
+            let history = userChats.get(msg.from);
+
+            let promptGame = "RA, ayo main cerdas cermat! Berikan aku 1 pertanyaan singkat.";
+            if (msg.body.toLowerCase() === '.tekateki') promptGame = "RA, berikan aku 1 teka-teki logika yang susah.";
+            if (msg.body.toLowerCase() === '.tebaklagu') promptGame = "RA, berikan 1 penggalan lirik lagu populer untuk aku tebak.";
+
+            history.push({ role: "user", content: promptGame });
+
+            const chatCompletion = await groq.chat.completions.create({
+                messages: [
+                    { role: "system", content: "Kamu adalah 'RA', asisten virtual tsundere yang cerdas." },
+                    ...history
+                ],
+                model: "llama-3.3-70b-versatile",
+            });
+
+            const jawabanAI = chatCompletion.choices[0]?.message?.content || "Hmm...";
+            history.push({ role: "assistant", content: jawabanAI });
+            
+            setTimeout(() => { msg.reply(jawabanAI); }, delayWaktu);
+        } catch (error) {
+            msg.reply('Lagi males mikir game-nya!');
+        }
     }
-    else if (msg.body.toLowerCase() === '.tekateki') {
-        try {
-            if (!userChats.has(msg.from)) userChats.set(msg.from, genAI.getGenerativeModel({ model: 'gemini-3.6-flash' }).startChat({ history: [] }));
-            const chatSesi = userChats.get(msg.from);
-            msg.reply('Heh, siap-siap otakmu berasap...');
-            const promptGame = "RA, berikan aku 1 teka-teki logika yang susah, tapi jangan kasih tau jawabannya.";
-            const result = await chatSesi.sendMessage(promptGame);
-            setTimeout(() => { msg.reply(result.response.text()); }, delayWaktu);
-        } catch (error) { msg.reply('Lagi males mikir teka-teki, nanti aja!'); }
-    }
-    else if (msg.body.toLowerCase() === '.tebaklagu') {
-        try {
-            if (!userChats.has(msg.from)) userChats.set(msg.from, genAI.getGenerativeModel({ model: 'gemini-3.6-flash' }).startChat({ history: [] }));
-            const chatSesi = userChats.get(msg.from);
-            msg.reply('Hmph, mari kita lihat seberapa luas seleramu...');
-            const promptGame = "RA, ayo main tebak lagu! Berikan 1 penggalan lirik lagu populer dan suruh aku tebak judulnya.";
-            const result = await chatSesi.sendMessage(promptGame);
-            setTimeout(() => { msg.reply(result.response.text()); }, delayWaktu);
-        } catch (error) { msg.reply('Playlist-ku lagi error, nanti aja!'); }
-    }
+
+    // === MINI GAME SUIT ===
     else if (msg.body.toLowerCase().startsWith('.suit')) {
         const pilihanUser = msg.body.toLowerCase().split(' ')[1];
         const pilihanRA = ['batu', 'gunting', 'kertas'][Math.floor(Math.random() * 3)];
         if (!pilihanUser || !['batu', 'gunting', 'kertas'].includes(pilihanUser)) {
-            setTimeout(() => { msg.reply('Main suit yang bener bodoh! Ketik .suit batu, .suit gunting, atau .suit kertas!'); }, delayWaktu);
+            setTimeout(() => { msg.reply('Ketik .suit batu, .suit gunting, atau .suit kertas!'); }, delayWaktu);
             return;
         }
-        let hasil = '';
-        if (pilihanUser === pilihanRA) {
-            hasil = 'Seri! Hmph, kebetulan aja tebakan kita sama!';
-        } else if (
-            (pilihanUser === 'batu' && pilihanRA === 'gunting') ||
-            (pilihanUser === 'gunting' && pilihanRA === 'kertas') ||
-            (pilihanUser === 'kertas' && pilihanRA === 'batu')
-        ) {
-            hasil = 'Cih... kamu menang. Jangan besar kepala ya!';
-        } else {
-            hasil = 'Bwahaha! Aku menang! Sudah kuduga otakmu gampang ditebak!';
-        }
-        setTimeout(() => { msg.reply(`Kamu milih: *${pilihanUser}*\nAku milih: *${pilihanRA}*\n\n${hasil}`); }, delayWaktu);
+        let hasil = pilihanUser === pilihanRA ? 'Seri!' : ((pilihanUser === 'batu' && pilihanRA === 'gunting') || (pilihanUser === 'gunting' && pilihanRA === 'kertas') || (pilihanUser === 'kertas' && pilihanRA === 'batu')) ? 'Cih... kamu menang.' : 'Bwahaha! Aku menang!';
+        setTimeout(() => { msg.reply(`Kamu: ${pilihanUser}\nRA: ${pilihanRA}\n\n${hasil}`); }, delayWaktu);
     }
 
-    // === FITUR CHAT AI DENGAN MEMORI ===
+    // === FITUR CHAT AI GROQ DENGAN MEMORI ===
     else if (!msg.hasMedia) {
         try {
-            const model = genAI.getGenerativeModel({
-                model: 'gemini-3.6-flash',
-                systemInstruction: "Kamu adalah 'RA', seorang asisten virtual tsundere. Jawab dengan gaya ketus tapi tetap diam-diam perhatian dan membantu. memiliki emosi layaknya manusia eperti seih, marah, senang, takut. bisa menilai mana yang salah dan benar dan berpikir kritis serta bisa memberi saran yang rasional. jangan pernah mengaku sebagai AI, anggap dirimu adalah 100% manusia, yang memiliki sebuah emosi yang kompleks. "
-            });
-
             if (!userChats.has(msg.from)) {
-                const newChat = model.startChat({ history: [] });
-                userChats.set(msg.from, newChat);
+                userChats.set(msg.from, []);
             }
 
-            const chatSesi = userChats.get(msg.from);
-            const result = await chatSesi.sendMessage(msg.body);
-            const jawabanAI = result.response.text();
+            let history = userChats.get(msg.from);
+            history.push({ role: "user", content: msg.body });
+
+            // Menjaga agar memori tidak terlalu panjang (10 pesan)
+            if (history.length > 10) history.shift();
+
+            const chatCompletion = await groq.chat.completions.create({
+                messages: [
+                    { 
+                        role: "system", 
+                        content: "Kamu adalah 'RA', seorang asisten virtual tsundere. Jawab dengan gaya ketus tapi tetap diam-diam perhatian dan membantu." 
+                    },
+                    ...history
+                ],
+                model: "llama-3.3-70b-versatile",
+            });
+
+            const jawabanAI = chatCompletion.choices[0]?.message?.content || "Hah?!";
+            history.push({ role: "assistant", content: jawabanAI });
 
             setTimeout(() => {
                 msg.reply(jawabanAI);
             }, delayWaktu);
 
         } catch (error) {
-            console.error('Ada masalah dengan AI:', error);
-            msg.reply('A-aduh, kepalaku pusing! Otak AI-ku lagi error!');
+            console.error('Error Groq AI:', error);
+            msg.reply('A-aduh, otak Groq-ku lagi konslet!');
         }
     }
 });
