@@ -217,7 +217,7 @@ Atau langsung chat saja, aku akan membalas dengan otak Groq-ku!`;
           { role: "system", content: "Kamu adalah 'RA', bot tsundere. Kamu akan memberikan soal permainan sesuai permintaan." },
           ...history
         ],
-        model: "mixtral-8x7b-32768", // Model Groq yang stabil dan cepat
+        model: "gemma2-9b-it", // Model Groq yang stabil dan cepat
       });
       
       const jawabanAI = chatCompletion.choices[0]?.message?.content;
@@ -275,7 +275,7 @@ Atau langsung chat saja, aku akan membalas dengan otak Groq-ku!`;
           },
           ...history
         ],
-        model: "mixtral-8x7b-32768", // Model Groq yang stabil dan cepat
+        model: "gemma2-9b-it", // Model Groq yang stabil dan cepat
       });
       
       const jawabanAI = chatCompletion.choices[0]?.message?.content;
