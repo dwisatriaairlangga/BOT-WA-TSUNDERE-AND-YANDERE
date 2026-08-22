@@ -14,7 +14,6 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const userChats = new Map();
 
 // === FUNGSI PENGAMAN TYPING ===
-// Mencegah error "r: r" saat WhatsApp Web sedang lemot/rewel
 async function setTyping(msg, isTyping) {
     try {
         const chat = await msg.getChat();
@@ -49,7 +48,7 @@ client.on('qr', (qr) => {
 
 client.on('ready', () => {
     console.log('=========================================');
-    console.log(' BOT RA (GROQ + ANTI-ERROR TYPING) AKTIF!');
+    console.log(' BOT RA (GROQ LLAMA 3.1 + ANTI-ERROR TYPING) AKTIF!');
     console.log('=========================================');
 });
 
@@ -99,7 +98,7 @@ client.on('message', async msg => {
     // === MENU BANTUAN ===
     else if (msg.body.toLowerCase() === '.menu' || msg.body.toLowerCase() === '.help') {
         await setTyping(msg, true);
-        const teksMenu = `*=== 🤖 DAFTAR PERINTAH RA (GROQ) 🤖 ===*\n\nJangan harap aku bakal ngajarin kamu dua kali ya!\n\n💬 *Chat & Interaksi*\n*.halo* : Nyapa RA\n*.ping* : Cek status RA\n*.stiker* : Bikin stiker WA dari gambar.\n\n🎮 *Mini Games AI*\n*.kuis* : Soal cerdas cermat.\n*.tekateki* : Teka-teki logika.\n*.tebaklagu* : Uji wawasan musik.\n*.suit* [batu/gunting/kertas] : Main suit lawan RA.\n\n📥 *Super Downloader*\n*.tiktok* [link] : Download TikTok (TikMate + AEMT).\n*.ig* [link] : Download IG Reels.\n*.yt* [link] : Download YouTube MP4 (2 Lapis).\n*.mp3* [link] : Download Musik YouTube MP3 (2 Lapis).\n\n💡 *Catatan:* Otakku sekarang pakai Groq (Llama), jadi jauh lebih ngebut!`;
+        const teksMenu = `*=== 🤖 DAFTAR PERINTAH RA (GROQ) 🤖 ===*\n\nJangan harap aku bakal ngajarin kamu dua kali ya!\n\n💬 *Chat & Interaksi*\n*.halo* : Nyapa RA\n*.ping* : Cek status RA\n*.stiker* : Bikin stiker WA dari gambar.\n\n🎮 *Mini Games AI*\n*.kuis* : Soal cerdas cermat.\n*.tekateki* : Teka-teki logika.\n*.tebaklagu* : Uji wawasan musik.\n*.suit* [batu/gunting/kertas] : Main suit lawan RA.\n\n📥 *Super Downloader*\n*.tiktok* [link] : Download TikTok (TikMate + AEMT).\n*.ig* [link] : Download IG Reels.\n*.yt* [link] : Download YouTube MP4 (2 Lapis).\n*.mp3* [link] : Download Musik YouTube MP3 (2 Lapis).\n\n💡 *Catatan:* Otakku sekarang pakai Groq (Llama 3.1), jadi jauh lebih ngebut!`;
         setTimeout(async () => { 
             msg.reply(teksMenu); 
             await setTyping(msg, false);
@@ -211,7 +210,7 @@ client.on('message', async msg => {
                     { role: "system", content: "Kamu adalah 'RA', asisten virtual tsundere yang cerdas." },
                     ...history
                 ],
-                model: "llama3-8b-8192", 
+                model: "llama-3.1-8b-instant", // Model generasi terbaru yang aktif!
             });
 
             const jawabanAI = chatCompletion.choices[0]?.message?.content || "Hmm...";
@@ -270,7 +269,7 @@ client.on('message', async msg => {
                     },
                     ...history
                 ],
-                model: "llama3-8b-8192",
+                model: "llama-3.1-8b-instant", // Model generasi terbaru yang aktif!
             });
 
             const jawabanAI = chatCompletion.choices[0]?.message?.content || "Hah?!";
